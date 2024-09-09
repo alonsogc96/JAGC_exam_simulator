@@ -29,8 +29,8 @@ Welcome to the Exam Simulator! This application allows you to create and take ex
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/your-username/exam-simulator.git
-   cd exam-simulator
+   git clone https://github.com/alonsogc96/JAGC_exam_simulator
+   cd JAGC_exam_simulator
 
 2. **Set Up the Database**
 

@@ -40,7 +40,7 @@
                     <div class="flex flex-col gap-4" style="padding: 40px 0 0 0;">
                         <a href="create_exam.php" class="w-full">
                             <button class="w-full rounded-md border border-blue-600 bg-blue-600 px-8 py-4 text-lg font-medium text-white transition hover:bg-transparent hover:text-blue-600 focus:outline-none focus:ring active:text-blue-500">
-                                Create a Exam
+                                Create an Exam
                             </button>
                         </a>
                         <a href="exam_list.php" class="w-full">

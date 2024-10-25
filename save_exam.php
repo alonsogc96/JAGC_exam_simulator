@@ -1,4 +1,4 @@
-<?php
+<?php 
 // Include DB connection
 include 'db_connect.php';
 
@@ -21,26 +21,46 @@ if ($stmt->execute()) {
     // Insert questions and options
     for ($i = 1; $i <= $numQuestions; $i++) {
         $questionText = $_POST['questions'][$i]['question'];
-        $options = $_POST['questions'][$i]['options'];
+        $questionType = $_POST['questions'][$i]['type'];
+        $options = isset($_POST['questions'][$i]['options']) ? $_POST['questions'][$i]['options'] : [];
         $correctAnswers = isset($_POST['questions'][$i]['correct_answers']) ? $_POST['questions'][$i]['correct_answers'] : [];
 
-        // Insert questions
-        $sql = "INSERT INTO questions (exam_id, question_text) VALUES (?, ?)";
+        // Insert question with type
+        $sql = "INSERT INTO questions (exam_id, question_text, question_type) VALUES (?, ?, ?)";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("is", $examId, $questionText);
+        $stmt->bind_param("iss", $examId, $questionText, $questionType);
 
         if ($stmt->execute()) {
             $questionId = $stmt->insert_id;
 
-            // Insert options
-            foreach ($options as $key => $optionText) {
-                $isCorrect = in_array($key, $correctAnswers) ? 1 : 0;
+            // Insert options for choice and check questions
+            if ($questionType === 'choice' || $questionType === 'check') {
+                if (!empty($options)) { // Ensure options are not empty
+                    foreach ($options as $key => $optionText) {
+                        $isCorrect = in_array($key, $correctAnswers) ? 1 : 0;
 
-                $sql = "INSERT INTO options (question_id, option_text, is_correct) VALUES (?, ?, ?)";
+                        $sql = "INSERT INTO options (question_id, option_text, is_correct) VALUES (?, ?, ?)";
+                        $stmt = $conn->prepare($sql);
+                        $stmt->bind_param("isi", $questionId, $optionText, $isCorrect);
+                        if (!$stmt->execute()) {
+                            $response['message'] .= 'Error inserting option: ' . $stmt->error . '. ';
+                        }
+                    }
+                } else {
+                    $response['message'] .= 'No options provided for question ' . $i . '. ';
+                }
+            } elseif ($questionType === 'answer') {
+                // Store fill in the blank answer
+                $answer = $_POST['questions'][$i]['answer'];
+                $sql = "INSERT INTO answers (question_id, answer) VALUES (?, ?)";
                 $stmt = $conn->prepare($sql);
-                $stmt->bind_param("isi", $questionId, $optionText, $isCorrect);
-                $stmt->execute();
+                $stmt->bind_param("is", $questionId, $answer);
+                if (!$stmt->execute()) {
+                    $response['message'] .= 'Error inserting answer for question ' . $i . ': ' . $stmt->error . '. ';
+                }
             }
+        } else {
+            $response['message'] .= 'Error inserting question ' . $i . ': ' . $stmt->error . '. ';
         }
     }
     $response['success'] = true;

@@ -40,26 +40,55 @@ try {
     
     while ($question = $questionsResult->fetch_assoc()) {
         $questionId = $question['id'];
-        
-        // Check correct options for this question
-        $sql = "SELECT * FROM options WHERE question_id = ? AND is_correct = 1";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("i", $questionId);
-        $stmt->execute();
-        $correctOptionsResult = $stmt->get_result();
-        
         $correctOptionIds = [];
-        while ($correctOption = $correctOptionsResult->fetch_assoc()) {
-            $correctOptionIds[] = $correctOption['id'];
+
+        // Get the correct answer for "answer" type questions
+        $expectedAnswer = null;
+        if ($question['question_type'] === 'answer') {
+            $sql = "SELECT answer FROM answers WHERE question_id = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("i", $questionId);
+            $stmt->execute();
+            $answerResult = $stmt->get_result();
+            
+            if ($answerRow = $answerResult->fetch_assoc()) {
+                $expectedAnswer = $answerRow['answer'];
+            }
+        } else {
+            // Get correct options for "choice" or "check" type questions
+            $sql = "SELECT * FROM options WHERE question_id = ? AND is_correct = 1";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("i", $questionId);
+            $stmt->execute();
+            $correctOptionsResult = $stmt->get_result();
+            
+            while ($correctOption = $correctOptionsResult->fetch_assoc()) {
+                $correctOptionIds[] = $correctOption['id'];
+            }
         }
-        
+
         // Check if the user's answers are correct
         $userAnswers = isset($submittedAnswers[$questionId]) ? $submittedAnswers[$questionId] : [];
-        if (empty(array_diff($correctOptionIds, $userAnswers)) && empty(array_diff($userAnswers, $correctOptionIds))) {
-            $correctAnswers++;
+
+        if ($question['question_type'] === 'answer') {
+            // For open-ended questions, check if the user's answer matches the expected answer
+            if ($expectedAnswer && strtolower(trim($userAnswers)) === strtolower(trim($expectedAnswer))) {
+                $correctAnswers++;
+            }
+        } else {
+            // Ensure userAnswers is always treated as an array
+            if (!is_array($userAnswers)) {
+                $userAnswers = [$userAnswers];
+            }
+
+            // For "choice" or "check" questions
+            if (empty(array_diff($correctOptionIds, $userAnswers)) && empty(array_diff($userAnswers, $correctOptionIds))) {
+                $correctAnswers++;
+            }
         }
     }
     
+    // Calculate score percentage
     $scorePercentage = ($totalQuestions > 0) ? ($correctAnswers / $totalQuestions) * 100 : 0;
     $passPercentage = $exam['pass_percentage'];
     $status = $scorePercentage >= $passPercentage ? 'PASS' : 'FAIL';
@@ -72,6 +101,7 @@ try {
     $conn->close();
 }
 
+// Redirect to results page with score and status
 header('Location: result.php?score=' . urlencode($scorePercentage) . '&status=' . urlencode($status));
 exit();
 ?>

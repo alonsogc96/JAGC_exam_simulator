@@ -38,12 +38,9 @@ try {
         $questions[] = $row;
     }
     
-    //$stmt->close();
 } catch (Exception $e) {
     echo "An error occurred: " . $e->getMessage();
     exit();
-} finally {
-    //$conn->close();
 }
 ?>
 
@@ -66,30 +63,34 @@ try {
         <h1 class="text-3xl font-bold mb-4">Exam: <?php echo htmlspecialchars($exam['name']); ?></h1>
         <form action="submit_exam.php" method="post">
             <input type="hidden" name="exam_id" value="<?php echo htmlspecialchars($examId); ?>">
-            <?php foreach ($questions as $index => $question): ?>
+            <?php foreach ($questions as $question): ?>
                 <div class="mb-4">
                     <p class="text-lg font-semibold"><?php echo htmlspecialchars($question['question_text']); ?></p>
                     <?php
-                    // Check options for this question
-                    try {
-                        $sql = "SELECT * FROM options WHERE question_id = ?";
-                        $stmt = $conn->prepare($sql);
-                        $stmt->bind_param("i", $question['id']);
-                        $stmt->execute();
-                        $optionsResult = $stmt->get_result();
-                        
-                        while ($option = $optionsResult->fetch_assoc()): ?>
-                            <div class="flex items-center mb-2">
-                                <input type="checkbox" name="answers[<?php echo $question['id']; ?>][]" value="<?php echo htmlspecialchars($option['id']); ?>" id="option-<?php echo $option['id']; ?>" class="mr-2">
-                                <label for="option-<?php echo $option['id']; ?>" class="text-gray-700"><?php echo htmlspecialchars($option['option_text']); ?></label>
-                            </div>
-                        <?php endwhile;
-                        $stmt->close();
-                    } catch (Exception $e) {
-                        echo "An error occurred: " . $e->getMessage();
-                        exit();
-                    }
-                    ?>
+                    // Check the question type
+                    if ($question['question_type'] === 'answer'): ?>
+                        <input type="text" name="answers[<?php echo $question['id']; ?>]" class="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Type your answer here..." required>
+                    <?php else: 
+                        // Fetch options for this question
+                        try {
+                            $sql = "SELECT * FROM options WHERE question_id = ?";
+                            $stmt = $conn->prepare($sql);
+                            $stmt->bind_param("i", $question['id']);
+                            $stmt->execute();
+                            $optionsResult = $stmt->get_result();
+                            
+                            while ($option = $optionsResult->fetch_assoc()): ?>
+                                <div class="flex items-center mb-2">
+                                    <input type="<?php echo ($question['question_type'] === 'check') ? 'checkbox' : 'radio'; ?>" name="answers[<?php echo $question['id']; ?>]<?php echo ($question['question_type'] === 'check') ? '[]' : ''; ?>" value="<?php echo htmlspecialchars($option['id']); ?>" id="option-<?php echo $option['id']; ?>" class="mr-2">
+                                    <label for="option-<?php echo $option['id']; ?>" class="text-gray-700"><?php echo htmlspecialchars($option['option_text']); ?></label>
+                                </div>
+                            <?php endwhile;
+                            $stmt->close();
+                        } catch (Exception $e) {
+                            echo "An error occurred: " . $e->getMessage();
+                            exit();
+                        }
+                    endif; ?>
                 </div>
             <?php endforeach; ?>
             <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Submit</button>
